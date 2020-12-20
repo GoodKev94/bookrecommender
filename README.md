@@ -1,18 +1,16 @@
 # bookrecommender
 
 
-This app will take in a book and return other books by the same author and similar books in the genre that other people have liked.
+This project is intended to hold all work recommended to web scraping and recommendations based around books.  Scripts in this project and their use are listed below:
 
-Sources for books:
 
-goodreads.com
-amazon.com
 
-----
-Input
-----
+---
+getBooksByAuthor.py
+---
 
-ISBN NUMBER
+This package will take an ISBN and search goodreads.com for information about the book.  It will also scrape goodreads for all books by that author and create a dataframe containing the book titles, average rating, and number of ratings.
+
 
 
 
