@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as soup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+import pandas as pd
 import time
 
 
@@ -15,13 +16,13 @@ options.add_argument('--headless')
 class book():
 	def __init__(self, isbn):
 		self.isbn = isbn
-		self.getgoodreadsURL()
+		self.getGoodreadsURL()
 		self.getGoodreadsBookDetails()
-		self.getBooksByAuthor()
+		self.getGoodreadsBooksByAuthorURL()
 
-	def getgoodreadsURL(self):
+	def getGoodreadsURL(self):
 		chromeDriverPath = '/Users/kevinbichoupan/drivers/chromedriver'
-		driver = webdriver.Chrome(chromeDriverPath, chrome_options=options)
+		driver = webdriver.Chrome(chromeDriverPath, options=options)
 		driver.get('https://www.goodreads.com/')
 	
 		driver.find_element_by_name("query").click()
@@ -41,21 +42,60 @@ class book():
 		self.author = metaContainer.find(class_='authorName').text
 		self.description  = metaContainer.find(id = 'descriptionContainer').text
 
-	def getBooksByAuthor(self):
+	def getGoodreadsBooksByAuthorURL(self):
 		chromeDriverPath = '/Users/kevinbichoupan/drivers/chromedriver'
-		driver = webdriver.Chrome(chromeDriverPath, chrome_options=options)
+		driver = webdriver.Chrome(chromeDriverPath, options=options)
 		driver.get('https://www.goodreads.com/')
 	
 		driver.find_element_by_name("query").click()
 		driver.find_element_by_name("query").clear()
 		driver.find_element_by_name("query").send_keys(self.author)
 		driver.find_element_by_name("query").send_keys(Keys.ENTER)
-		self.booksByAuthorURL  = driver.current_url
+	
+		self.goodreadsBooksByAuthorURL  = driver.current_url + "&page=1"
+	
 		driver.quit()
+
+	def getGoodreadsBooksByAuthor(self):
+		htmlRaw = urlopen(self.goodreadsBooksByAuthorURL)
+		htmlSoup = soup(htmlRaw.read(), "html.parser")
+		htmlRaw.close()
+		
+		a = htmlSoup.find(style = 'float: right').text
+		finalPos = a.find(' next')
+		startPos = a[:finalPos].rfind(' ')
+		maxPage = int(a[startPos+1:finalPos])
+		
+		booksByAuthor = []		
+
+		for p in range(1,maxPage+1):
+			newURL = self.goodreadsBooksByAuthorURL[0:-1] + str(p)
+			htmlRaw = urlopen(newURL)
+			htmlSoup = soup(htmlRaw.read(), "html.parser")
+			htmlRaw.close()
+
+			bookContainers = htmlSoup.findAll(itemtype = "http://schema.org/Book")
+
+			for i in bookContainers:
+				preRatingText = i.find(class_ = 'minirating')
+				unwanted = preRatingText.find('span')
+				unwanted.extract()			
+				ratingText = preRatingText.text
+			
+				bookDetails = {
+				'title' : i.find(itemprop = 'name').text,
+				'average rating' : float(ratingText[1:5]),
+				'no. ratings' : int(ratingText[ratingText.find(' — ')+3 : ratingText.rfind(' rating')].replace(',',''))
+				}
+
+				booksByAuthor.append(bookDetails)
+
+		self.goodreadsBooksByAuthor = pd.DataFrame(booksByAuthor)
+
 
 if __name__ == "__main__":
 	x = book('9780451191137')
-	print(x.booksByAuthorURL)
-
+	x.getGoodreadsBooksByAuthor()
+	print(x.goodreadsBooksByAuthor)
 
 
